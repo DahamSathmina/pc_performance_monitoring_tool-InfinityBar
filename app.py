@@ -1,7 +1,7 @@
 """
 Infinity Task Manager
 Version: 2.3.0.1
-Author: Performance Monitoring Team
+Author: Daham Sathmin
 License: MIT
 
 A complete Windows Task Manager replica with all features.
