@@ -2,7 +2,7 @@
 Infinity Task Manager
 Version: 2.3.0.1
 Author: Daham Sathmin
-License: MIT
+License:  GNU General Public License v3.0
 
 A complete Windows Task Manager replica with all features.
 
