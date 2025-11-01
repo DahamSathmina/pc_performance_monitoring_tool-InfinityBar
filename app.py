@@ -1,5 +1,5 @@
 """
-Infinity Task Manager
+Infinity TaskManager
 Version: 2.3.0.1
 Author: Daham Sathmin
 License:  GNU General Public License v3.0
