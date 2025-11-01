@@ -1,6 +1,6 @@
 """
-Windows Task Manager Clone - Production Edition
-Version: 2.0.0
+Infinity Task Manager
+Version: 2.3.0.1
 Author: Performance Monitoring Team
 License: MIT
 
@@ -1073,7 +1073,7 @@ def main() -> int:
     logger = logging.getLogger(__name__)
     
     logger.info("=" * 60)
-    logger.info("Windows Task Manager Clone v2.0.0")
+    logger.info("Infinity TaskBar v2.3.0.1")
     logger.info("=" * 60)
     logger.info(f"Platform: {sys.platform}")
     logger.info(f"Python: {sys.version}")
