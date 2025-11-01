@@ -238,8 +238,88 @@ class SystemMonitor:
 
 
 # ============================================================================
-# Utility Functions
+# Custom Graph Widget
 # ============================================================================
+
+class GraphWidget(QtWidgets.QWidget):
+    """Custom graph widget for performance metrics."""
+    
+    def __init__(self, title: str, color: str, parent=None):
+        super().__init__(parent)
+        self.title = title
+        self.color = QtGui.QColor(color)
+        self.data = deque([0] * 60, maxlen=60)
+        self.setMinimumHeight(150)
+    
+    def update_data(self, value: float):
+        """Update graph with new value."""
+        self.data.append(value)
+        self.update()
+    
+    def paintEvent(self, event):
+        """Paint the graph."""
+        painter = QtGui.QPainter(self)
+        painter.setRenderHint(QtGui.QPainter.Antialiasing)
+        
+        # Background
+        painter.fillRect(self.rect(), QtGui.QColor("#202020"))
+        
+        # Title
+        painter.setPen(QtGui.QColor("#ffffff"))
+        font = QtGui.QFont("Segoe UI", 10, QtGui.QFont.Bold)
+        painter.setFont(font)
+        painter.drawText(10, 20, self.title)
+        
+        # Current value
+        if self.data:
+            current_val = self.data[-1]
+            painter.drawText(10, 40, f"{current_val:.1f}%")
+        
+        # Grid lines
+        painter.setPen(QtGui.QPen(QtGui.QColor("#2d2d2d"), 1))
+        for i in range(0, 101, 25):
+            y = self.height() - 30 - int((i / 100) * (self.height() - 60))
+            painter.drawLine(50, y, self.width() - 10, y)
+        
+        # Draw graph line
+        if len(self.data) > 1:
+            painter.setPen(QtGui.QPen(self.color, 2))
+            
+            points = []
+            width = self.width() - 60
+            height = self.height() - 60
+            
+            for i, val in enumerate(self.data):
+                x = 50 + int((i / len(self.data)) * width)
+                y = self.height() - 30 - int((val / 100) * height)
+                points.append(QtCore.QPointF(x, y))
+            
+            # Draw path
+            path = QtGui.QPainterPath()
+            if points:
+                path.moveTo(points[0])
+                for point in points[1:]:
+                    path.lineTo(point)
+                painter.drawPath(path)
+                
+                # Fill area under curve
+                painter.setBrush(QtGui.QColor(self.color.red(), self.color.green(), 
+                                              self.color.blue(), 50))
+                painter.setPen(QtCore.Qt.NoPen)
+                
+                fill_path = QtGui.QPainterPath()
+                fill_path.moveTo(points[0].x(), self.height() - 30)
+                fill_path.lineTo(points[0])
+                for point in points[1:]:
+                    fill_path.lineTo(point)
+                fill_path.lineTo(points[-1].x(), self.height() - 30)
+                fill_path.closeSubpath()
+                painter.drawPath(fill_path)
+        
+        # Border
+        painter.setPen(QtGui.QPen(QtGui.QColor("#2d2d2d"), 1))
+        painter.setBrush(QtCore.Qt.NoBrush)
+        painter.drawRect(self.rect().adjusted(0, 0, -1, -1))
 
 def format_bytes(bytes_val: float) -> str:
     """Format bytes to human-readable string."""
@@ -480,36 +560,20 @@ class PerformanceTab(QtWidgets.QWidget):
         graphs_layout = QtWidgets.QGridLayout()
         
         # CPU Graph
-        self.cpu_chart = self._create_chart("CPU", "#0078d4")
-        self.cpu_series = QLineSeries()
-        self.cpu_chart.addSeries(self.cpu_series)
-        cpu_view = QChartView(self.cpu_chart)
-        cpu_view.setRenderHint(QtGui.QPainter.Antialiasing)
-        graphs_layout.addWidget(cpu_view, 0, 0)
+        self.cpu_graph = GraphWidget("CPU", "#0078d4")
+        graphs_layout.addWidget(self.cpu_graph, 0, 0)
         
         # Memory Graph
-        self.mem_chart = self._create_chart("Memory", "#00cc6a")
-        self.mem_series = QLineSeries()
-        self.mem_chart.addSeries(self.mem_series)
-        mem_view = QChartView(self.mem_chart)
-        mem_view.setRenderHint(QtGui.QPainter.Antialiasing)
-        graphs_layout.addWidget(mem_view, 0, 1)
+        self.mem_graph = GraphWidget("Memory", "#00cc6a")
+        graphs_layout.addWidget(self.mem_graph, 0, 1)
         
         # Disk Graph
-        self.disk_chart = self._create_chart("Disk", "#f7630c")
-        self.disk_series = QLineSeries()
-        self.disk_chart.addSeries(self.disk_series)
-        disk_view = QChartView(self.disk_chart)
-        disk_view.setRenderHint(QtGui.QPainter.Antialiasing)
-        graphs_layout.addWidget(disk_view, 1, 0)
+        self.disk_graph = GraphWidget("Disk", "#f7630c")
+        graphs_layout.addWidget(self.disk_graph, 1, 0)
         
         # Network Graph
-        self.net_chart = self._create_chart("Network", "#ffb900")
-        self.net_series = QLineSeries()
-        self.net_chart.addSeries(self.net_series)
-        net_view = QChartView(self.net_chart)
-        net_view.setRenderHint(QtGui.QPainter.Antialiasing)
-        graphs_layout.addWidget(net_view, 1, 1)
+        self.net_graph = GraphWidget("Network", "#ffb900")
+        graphs_layout.addWidget(self.net_graph, 1, 1)
         
         layout.addLayout(graphs_layout, 3)
         
@@ -521,39 +585,12 @@ class PerformanceTab(QtWidgets.QWidget):
         self.disk_info = QtWidgets.QLabel()
         self.net_info = QtWidgets.QLabel()
         
-        info_layout.addWidget(self._create_info_panel("CPU", self.cpu_info), 0, 0)
-        info_layout.addWidget(self._create_info_panel("Memory", self.mem_info), 0, 1)
-        info_layout.addWidget(self._create_info_panel("Disk", self.disk_info), 1, 0)
-        info_layout.addWidget(self._create_info_panel("Network", self.net_info), 1, 1)
+        info_layout.addWidget(self._create_info_panel("CPU Details", self.cpu_info), 0, 0)
+        info_layout.addWidget(self._create_info_panel("Memory Details", self.mem_info), 0, 1)
+        info_layout.addWidget(self._create_info_panel("Disk Details", self.disk_info), 1, 0)
+        info_layout.addWidget(self._create_info_panel("Network Details", self.net_info), 1, 1)
         
         layout.addLayout(info_layout, 1)
-    
-    def _create_chart(self, title: str, color: str) -> QChart:
-        """Create a chart for metrics."""
-        chart = QChart()
-        chart.setTitle(title)
-        chart.setAnimationOptions(QChart.NoAnimation)
-        chart.legend().hide()
-        chart.setBackgroundBrush(QtGui.QBrush(QtGui.QColor("#202020")))
-        chart.setTitleBrush(QtGui.QBrush(QtGui.QColor("#ffffff")))
-        
-        # Configure axes
-        axis_x = QValueAxis()
-        axis_x.setRange(0, 60)
-        axis_x.setLabelFormat("%d")
-        axis_x.setLabelsVisible(False)
-        axis_x.setGridLineColor(QtGui.QColor("#2d2d2d"))
-        
-        axis_y = QValueAxis()
-        axis_y.setRange(0, 100)
-        axis_y.setLabelFormat("%d%%")
-        axis_y.setLabelsColor(QtGui.QColor("#ffffff"))
-        axis_y.setGridLineColor(QtGui.QColor("#2d2d2d"))
-        
-        chart.addAxis(axis_x, QtCore.Qt.AlignBottom)
-        chart.addAxis(axis_y, QtCore.Qt.AlignLeft)
-        
-        return chart
     
     def _create_info_panel(self, title: str, label: QtWidgets.QLabel) -> QtWidgets.QGroupBox:
         """Create info panel."""
@@ -569,53 +606,29 @@ class PerformanceTab(QtWidgets.QWidget):
         try:
             self.monitor.update_history()
             
-            # Update CPU graph
-            self.cpu_series.clear()
-            for i, val in enumerate(self.monitor.cpu_history):
-                self.cpu_series.append(i, val)
+            # Update graphs
+            if self.monitor.cpu_history:
+                self.cpu_graph.update_data(self.monitor.cpu_history[-1])
             
-            # Attach series to axes
-            if self.cpu_series not in self.cpu_chart.series():
-                self.cpu_chart.addSeries(self.cpu_series)
-            self.cpu_series.attachAxis(self.cpu_chart.axes(QtCore.Qt.Horizontal)[0])
-            self.cpu_series.attachAxis(self.cpu_chart.axes(QtCore.Qt.Vertical)[0])
+            if self.monitor.memory_history:
+                self.mem_graph.update_data(self.monitor.memory_history[-1])
             
-            # Update Memory graph
-            self.mem_series.clear()
-            for i, val in enumerate(self.monitor.memory_history):
-                self.mem_series.append(i, val)
+            if self.monitor.disk_history:
+                self.disk_graph.update_data(self.monitor.disk_history[-1])
             
-            if self.mem_series not in self.mem_chart.series():
-                self.mem_chart.addSeries(self.mem_series)
-            self.mem_series.attachAxis(self.mem_chart.axes(QtCore.Qt.Horizontal)[0])
-            self.mem_series.attachAxis(self.mem_chart.axes(QtCore.Qt.Vertical)[0])
-            
-            # Update Disk graph
-            self.disk_series.clear()
-            for i, val in enumerate(self.monitor.disk_history):
-                self.disk_series.append(i, val)
-            
-            if self.disk_series not in self.disk_chart.series():
-                self.disk_chart.addSeries(self.disk_series)
-            self.disk_series.attachAxis(self.disk_chart.axes(QtCore.Qt.Horizontal)[0])
-            self.disk_series.attachAxis(self.disk_chart.axes(QtCore.Qt.Vertical)[0])
-            
-            # Update Network graph
-            self.net_series.clear()
-            for i, val in enumerate(self.monitor.network_history):
-                self.net_series.append(i, val)
-            
-            if self.net_series not in self.net_chart.series():
-                self.net_chart.addSeries(self.net_series)
-            self.net_series.attachAxis(self.net_chart.axes(QtCore.Qt.Horizontal)[0])
-            self.net_series.attachAxis(self.net_chart.axes(QtCore.Qt.Vertical)[0])
+            if self.monitor.network_history:
+                self.net_graph.update_data(self.monitor.network_history[-1])
             
             # Update info labels
             cpu_info = psutil.cpu_percent(interval=None)
             cpu_count = psutil.cpu_count()
+            cpu_freq = psutil.cpu_freq()
+            
+            freq_text = f"\nSpeed: {cpu_freq.current:.0f} MHz" if cpu_freq else ""
+            
             self.cpu_info.setText(
                 f"Utilization: {cpu_info:.1f}%\n"
-                f"Cores: {cpu_count}\n"
+                f"Cores: {cpu_count}{freq_text}\n"
                 f"Processes: {len(psutil.pids())}"
             )
             
@@ -632,7 +645,7 @@ class PerformanceTab(QtWidgets.QWidget):
                 f"Used: {format_bytes(disk['used'])}\n"
                 f"Free: {format_bytes(disk['free'])}\n"
                 f"Total: {format_bytes(disk['total'])}\n"
-                f"Active: {disk['percent']:.1f}%"
+                f"Capacity: {disk['percent']:.1f}%"
             )
             
             net = self.monitor.get_network_info()
