@@ -37,7 +37,6 @@ from datetime import datetime, timedelta
 
 import psutil
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtChart import QChart, QChartView, QLineSeries, QValueAxis
 
 
 # ============================================================================
